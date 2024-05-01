@@ -67,16 +67,28 @@ class FunctionParser(input: String) {
     private fun calculateXRecursive(tokens: List<Token>): Double {
         if (tokens.any { it is Token.Divider }) {
             val close = tokens.indexOf(Token.Divider.Close)
-            val open = tokens.subList(0, close + 1).indexOfLast { it is Token.Divider.Open }
+            val open =
+                tokens.subList(0, close + 1)
+                    .indexOfLast { it is Token.Divider.Open }
             return if (close != -1 && open != -1) calculateXRecursive(
-                tokens.subList(0, open) + Token.Num(calculateXRecursive(tokens.subList(open + 1, close))) + tokens.subList(
+                tokens.subList(
+                    0, open
+                ) + Token.Num(
+                    calculateXRecursive(
+                        tokens.subList(
+                            open + 1, close
+                        )
+                    )
+                ) + tokens.subList(
                     close + 1, tokens.size
                 )
             ) else throw IllegalArgumentException()
         } else if (tokens.any { it is Token.Operator.Minus }) {
             val newTokens = mutableListOf<Token>()
             tokens.forEachIndexed { index, it ->
-                if (index != 0 && it is Token.Num && tokens[index - 1] is Token.Operator.Minus) newTokens += Token.Num(-it.v)
+                if (index != 0 && it is Token.Num && tokens[index - 1] is Token.Operator.Minus) newTokens += Token.Num(
+                    -it.v
+                )
                 else if (!(it is Token.Operator.Minus && tokens.getOrNull(index + 1) is Token.Num)) newTokens += it
                 if (it is Token.Operator.Minus && tokens.getOrNull(index + 1) == null) return 0.0
             }
@@ -89,11 +101,14 @@ class FunctionParser(input: String) {
                 return calculateXRecursive(
                     tokens.subList(
                         0, index - 1
-                    ) + Token.Num(a.v.pow(b.v)) + tokens.subList(index + 2, tokens.size)
+                    ) + Token.Num(a.v.pow(b.v)) + tokens.subList(
+                        index + 2, tokens.size
+                    )
                 )
             }
         } else if (tokens.find { it is Token.Operator.Mul || it is Token.Operator.Div } != null) {
-            val token = tokens.first { it is Token.Operator.Mul || it is Token.Operator.Div }
+            val token =
+                tokens.first { it is Token.Operator.Mul || it is Token.Operator.Div }
             if (token is Token.Operator.Mul) {
                 val index = tokens.indexOf(Token.Operator.Mul)
                 if (index != 0 && index != tokens.size - 1 && tokens[index - 1] is Token.Num && tokens[index + 1] is Token.Num) {
@@ -102,7 +117,9 @@ class FunctionParser(input: String) {
                     return calculateXRecursive(
                         tokens.subList(
                             0, index - 1
-                        ) + Token.Num(a.v * b.v) + tokens.subList(index + 2, tokens.size)
+                        ) + Token.Num(a.v * b.v) + tokens.subList(
+                            index + 2, tokens.size
+                        )
                     )
                 }
 
@@ -114,12 +131,15 @@ class FunctionParser(input: String) {
                     return calculateXRecursive(
                         tokens.subList(
                             0, index - 1
-                        ) + Token.Num(a.v / b.v) + tokens.subList(index + 2, tokens.size)
+                        ) + Token.Num(a.v / b.v) + tokens.subList(
+                            index + 2, tokens.size
+                        )
                     )
                 }
             }
         } else if (tokens.find { it is Token.Operator.Add || it is Token.Operator.Sub } != null) {
-            val token = tokens.first { it is Token.Operator.Add || it is Token.Operator.Sub }
+            val token =
+                tokens.first { it is Token.Operator.Add || it is Token.Operator.Sub }
             if (token is Token.Operator.Add) {
                 val index = tokens.indexOf(Token.Operator.Add)
                 if (index != 0 && index != tokens.size - 1 && tokens[index - 1] is Token.Num && tokens[index + 1] is Token.Num) {
@@ -128,7 +148,9 @@ class FunctionParser(input: String) {
                     return calculateXRecursive(
                         tokens.subList(
                             0, index - 1
-                        ) + Token.Num(a.v + b.v) + tokens.subList(index + 2, tokens.size)
+                        ) + Token.Num(a.v + b.v) + tokens.subList(
+                            index + 2, tokens.size
+                        )
                     )
                 }
             } else if (token is Token.Operator.Sub) {
@@ -139,7 +161,9 @@ class FunctionParser(input: String) {
                     return calculateXRecursive(
                         tokens.subList(
                             0, index - 1
-                        ) + Token.Num(a.v - b.v) + tokens.subList(index + 2, tokens.size)
+                        ) + Token.Num(a.v - b.v) + tokens.subList(
+                            index + 2, tokens.size
+                        )
                     )
                 }
             }
@@ -147,7 +171,8 @@ class FunctionParser(input: String) {
         throw IllegalArgumentException()
     }
 
-    fun calculateString(): String = _tokens.toString()//.fastJoinToString(" ") { it.symbol }
+    fun calculateString(): String =
+        _tokens.toString()//.fastJoinToString(" ") { it.symbol }
 
     private fun parse(input: String): List<Token> {
         val tokens: MutableList<Token> = mutableListOf()
@@ -186,12 +211,23 @@ class FunctionParser(input: String) {
 
 sealed interface Method {
     val name: String
-    fun calculate(start: Double, end: Double, countSub: Int, f: (Double) -> Double): Double
+    fun calculate(
+        start: Double,
+        end: Double,
+        countSub: Int,
+        f: (Double) -> Double,
+    ): Double
 
     data object LeftRectangle : Method {
         override val name = "Left Rectangle"
-        override fun calculate(start: Double, end: Double, countSub: Int, f: (Double) -> Double): Double = 0.until(countSub).fold(0.0) { acc, i ->
-            fun x(index: Int): Double = ((end - start) / countSub.toDouble()) * index
+        override fun calculate(
+            start: Double,
+            end: Double,
+            countSub: Int,
+            f: (Double) -> Double,
+        ): Double = 0.until(countSub).fold(0.0) { acc, i ->
+            fun x(index: Int): Double =
+                ((end - start) / countSub.toDouble()) * index
             acc + f(x(i)) * (x(i + 1) - x(i))
         }
     }
@@ -204,18 +240,35 @@ class MainWindowState(
     val method = MutableStateFlow<Method>(Method.LeftRectangle)
     val functionInputText = MutableStateFlow("")
     val subIntegralsInputText = MutableStateFlow("")
-    val subIntegralsInt = subIntegralsInputText.map { it.toIntOrNull() }
-    val subIntegralsInputTextError = subIntegralsInt.map { it == null }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
-    val functionParser = functionInputText.map { FunctionParser(it) }
-    val functionInputTextError = functionParser.map { it.calculateX(5.0) == null }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
-    val functionOutputText = functionParser.map { it.calculateString() }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "")
-    val functionXOutputText = functionParser.map { it.calculateX(2.0).toString() }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "")
-    val integralOutput = combine(functionParser, subIntegralsInt, method) { fp, int, method ->
-        method.calculate(0.0, 1.0, int ?: 1) { fp.calculateX(it) ?: 0.0 }.toString()
+    private val subIntegralsInt = subIntegralsInputText.map {
+        it.toIntOrNull()?.takeIf { it in 1..999999 }
+    }
+    val subIntegralsInputTextError = subIntegralsInt.map { it == null }.stateIn(
+        viewModelScope, SharingStarted.WhileSubscribed(5000), false
+    )
+    val functionInputTextError = MutableStateFlow<String?>(null)
+    val integralOutput = combine(
+        functionInputText, subIntegralsInt, method
+    ) { str, int, method ->
+        try {
+            if (int != null) {
+                _FunctionParser(str, hashMapOf('x' to 0.0))
+                method.calculate(0.0, 1.0, int ?: 1) {
+                    functionInputTextError.value = null
+                    _FunctionParser(
+                        str, hashMapOf('x' to it)
+                    ).result
+                }
+            } else 0.0
+        } catch (e: Exception) {
+            functionInputTextError.value = e.message ?: "unknown error"
+            0.0
+        }.toString()
     }.stateIn(
         viewModelScope, SharingStarted.WhileSubscribed(5000), ""
     )
 }
 
 @Composable
-fun rememberMainWindowState(exit: () -> Unit) = remember { MainWindowState(exit = exit) }
+fun rememberMainWindowState(exit: () -> Unit) =
+    remember { MainWindowState(exit = exit) }
