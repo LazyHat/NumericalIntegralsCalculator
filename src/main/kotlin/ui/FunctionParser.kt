@@ -1,23 +1,59 @@
 package ui
 
+import androidx.compose.ui.util.fastForEachReversed
+import kotlinx.collections.immutable.PersistentMap
+import kotlin.math.cos
 import kotlin.math.pow
+import kotlin.math.sin
 
-data class _FunctionParser(
+sealed interface Token {
+    data class Inverse(val value: Token) : Token
+    data class Add(val a: Token, val b: Token) : Token
+    data class Sub(val a: Token, val b: Token) : Token
+    data class Mul(val a: Token, val b: Token) : Token
+    data class Div(val a: Token, val b: Token) : Token
+    data class Pow(val base: Token, val degree: Token) : Token
+    data class Sqrt(val value: Token) : Token
+    data class Sin(val value: Token) : Token
+    data class Cos(val value: Token) : Token
+    data class Number(val value: Double) : Token
+    data class Variable(val letter: Char) : Token
+}
+
+fun Token.calculate(variables: PersistentMap<Char, Double>): Double =
+    when (this) {
+        is Token.Inverse -> -value.calculate(variables)
+        is Token.Add -> a.calculate(variables) + b.calculate(variables)
+        is Token.Sub -> a.calculate(variables) - b.calculate(variables)
+        is Token.Mul -> a.calculate(variables) * b.calculate(variables)
+        is Token.Div -> a.calculate(variables) / b.calculate(variables)
+        is Token.Pow -> base.calculate(variables)
+            .pow(degree.calculate(variables))
+
+        is Token.Sqrt -> value.calculate(variables)
+        is Token.Cos -> cos(value.calculate(variables))
+        is Token.Sin -> sin(value.calculate(variables))
+        is Token.Number -> value
+        is Token.Variable -> variables[letter]
+            ?: error("Variable does not exists")
+    }
+
+data class FunctionParser(
     val s: String,
-    val variables: HashMap<Char, Double>,
 ) {
-    val result = parse(s)
-    private fun parse(s: String): Double {
+    private val result = parse(s)
+
+    fun calculate(variables: PersistentMap<Char, Double>): Double =
+        result.calculate(variables)
+
+    private fun parse(s: String): Token {
         val result = parseAddSub(s.filterNot { it.isWhitespace() })
-        if (result.remainingPart.isNotEmpty()) {
-            error("Parsing error: can't parse ${result.remainingPart}")
-        }
-        return result.acc
+        return result.token
     }
 
     private fun parseAddSub(s: String): ParseResult {
         var current = parseMulDiv(s)
-        var acc = current.acc
+        var token = current.token
 
         while (current.remainingPart.isNotEmpty()) {
             val sign = current.remainingPart[0]
@@ -27,16 +63,16 @@ data class _FunctionParser(
 
             current = parseMulDiv(next)
             when (sign) {
-                '+' -> acc += current.acc
-                '-' -> acc -= current.acc
+                '+' -> token = Token.Add(token, current.token)
+                '-' -> token = Token.Sub(token, current.token)
             }
         }
-        return ParseResult(acc, current.remainingPart)
+        return ParseResult(token, current.remainingPart)
     }
 
     private fun parseMulDiv(s: String): ParseResult {
         var current = parsePower(s)
-        var acc = current.acc
+        var token = current.token
 
         while (current.remainingPart.isNotEmpty()) {
             val sign = current.remainingPart[0]
@@ -46,27 +82,31 @@ data class _FunctionParser(
 
             current = parsePower(next)
             when (sign) {
-                '*' -> acc *= current.acc
-                '/' -> acc /= current.acc
+                '*' -> token = Token.Mul(token, current.token)
+                '/' -> token = Token.Div(token, current.token)
             }
         }
-        return ParseResult(acc, current.remainingPart)
+        return ParseResult(token, current.remainingPart)
     }
 
     private fun parsePower(s: String): ParseResult {
-        val values = mutableListOf(parseBracket(s))
+        var current = parseBracket(s)
+        val tokens = mutableListOf(current.token)
 
-        while (values.last().remainingPart.isNotEmpty()) {
-            if (values.last().remainingPart[0] != '^') break
+        while (current.remainingPart.isNotEmpty()) {
+            if (current.remainingPart[0] != '^') break
 
-            values += parseBracket(values.last().remainingPart.substring(1))
+            current = parseBracket(current.remainingPart.substring(1))
+            tokens += current.token
         }
 
-        return ParseResult(values.foldRight(1.0) {
-                it, acc,
-            ->
-            it.acc.pow(acc)
-        }, values.last().remainingPart)
+        return if (tokens.size > 1) {
+            var temp = tokens.last()
+            tokens.dropLast(1).fastForEachReversed {
+                temp = Token.Pow(it, temp)
+            }
+            ParseResult(temp, current.remainingPart)
+        } else current
     }
 
     private fun parseBracket(s: String): ParseResult {
@@ -79,22 +119,51 @@ data class _FunctionParser(
             }
             return r
         }
-        return parseVariable(s)
+        return parseOperand(s)
     }
 
-    private fun parseVariable(s: String): ParseResult {
-        var result: ParseResult? = null
-        val negative = s[0] == '-'
-        var si = s
-        if (negative) si = s.substring(1)
-        result = if (si[0].isDigit()) parseNumber(s) else {
-            val variable = variables[s[0]]
-            if (variable != null) {
-                ParseResult(variable, si.substring(1))
-            } else error("Variable does not exists")
+    private fun parseOperand(s: String): ParseResult {
+        var str = s
+        var negative = false
+        while (str[0] == '-') {
+            str = str.substring(1)
+            negative = !negative
         }
-        if (negative) result = result.copy(acc = -result.acc)
-        return result
+        return if (str[0].isDigit()) parseNumber(str) else {
+            val operand = if (str.length == 1) str else str.substring(0,
+                str.indexOfFirst { !it.isLetter() }
+                    .let { if (it == -1) error("Invalid operand") else it })
+
+            return (if (operand.length == 1) parseVariable(s)
+            else if (operand.length > 1) {
+                parseFunction(str)
+            } else error("Invalid operand")).let {
+                if (negative) it.copy(token = Token.Inverse(it.token))
+                else it
+            }
+        }
+    }
+
+    private fun parseVariable(s: String): ParseResult =
+        if (s[0].isDigit()) parseNumber(s) else {
+            ParseResult(Token.Variable(s[0]), s.substring(1))
+        }
+
+    private fun parseFunction(
+        s: String,
+    ): ParseResult {
+        val indexOfBracket = s.indexOfFirst { it == '(' }
+        if (indexOfBracket == -1) error("Invalid operand")
+        val function = s.substring(0, indexOfBracket)
+        val childrenResult = parseBracket(s.substring(indexOfBracket))
+        return childrenResult.let {
+            when (function) {
+                "sin" -> it.copy(token = Token.Sin(it.token))
+                "cos" -> it.copy(token = Token.Cos(it.token))
+                "sqrt" -> it.copy(token = Token.Sqrt(it.token))
+                else -> error("Function not found")
+            }
+        }
     }
 
     private fun parseNumber(s: String): ParseResult {
@@ -105,7 +174,7 @@ data class _FunctionParser(
                     else it + 1
                 }
             return ParseResult(
-                s.substring(0, nonDigitCharIndex).toDouble(),
+                Token.Number(s.substring(0, nonDigitCharIndex).toDouble()),
                 s.substring(nonDigitCharIndex)
             )
         } else {
@@ -113,5 +182,5 @@ data class _FunctionParser(
         }
     }
 
-    private data class ParseResult(val acc: Double, val remainingPart: String)
+    private data class ParseResult(val token: Token, val remainingPart: String)
 }

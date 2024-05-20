@@ -1,12 +1,13 @@
-import androidx.compose.material.MaterialTheme
-import androidx.compose.material.darkColors
+
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.darkColorScheme
 import androidx.compose.ui.window.application
 import ui.MainWindow
 import ui.rememberMainWindowState
 
 fun main() = application {
     MaterialTheme(
-        colors = darkColors()
+        colorScheme = darkColorScheme()
     ) {
         MainWindow(rememberMainWindowState(::exitApplication))
     }

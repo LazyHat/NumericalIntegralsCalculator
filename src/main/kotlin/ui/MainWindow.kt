@@ -1,14 +1,15 @@
 package ui
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.*
-import androidx.compose.material.*
+import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
 
-@OptIn(ExperimentalMaterialApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainWindow(state: MainWindowState) {
     Window(
@@ -29,45 +30,66 @@ fun MainWindow(state: MainWindowState) {
                             var expanded by remember { mutableStateOf(false) }
                             ExposedDropdownMenuBox(expanded,
                                 { expanded = it }) {
-                                TextField(value = state.method.collectAsState().value.name,
+                                TextField(modifier = Modifier.menuAnchor(),
+                                    value = state.method.collectAsState().value.name,
                                     onValueChange = {},
                                     readOnly = true,
                                     label = { Text("method") },
                                     trailingIcon = {
                                         ExposedDropdownMenuDefaults.TrailingIcon(
                                             expanded
-                                        ) { expanded = !expanded }
+                                        )
                                     })
                                 DropdownMenu(expanded, { expanded = false }) {
-                                    DropdownMenuItem({
-                                        state.method.value =
-                                            Method.LeftRectangle; expanded =
-                                        false
-                                    }) {
-                                        Text("Left Rectangle")
+                                    Method.entries.forEach {
+                                        DropdownMenuItem(onClick = {
+                                            state.method.value = it; expanded =
+                                            false
+                                        }, text = {
+                                            Text(it.name)
+                                        })
                                     }
                                 }
                             }
                             val error =
-                                state.functionInputTextError.collectAsState().value
-                            TextField(
-                                value = state.functionInputText.collectAsState().value,
+                                state.functionError.collectAsState().value
+                            TextField(value = state.functionInputText.collectAsState().value,
                                 onValueChange = {
                                     state.functionInputText.value = it
                                 },
                                 label = { Text("function by x") },
-                                isError = error != null
-                            )
-                            Text(
-                                error ?: "", color = MaterialTheme.colors.error
-                            )
+                                isError = error != null,
+                                supportingText = {
+                                    AnimatedVisibility(error != null) {
+                                        Text(
+                                            error.orEmpty(),
+                                            color = MaterialTheme.colorScheme.error
+                                        )
+                                    }
+                                })
                             TextField(
-                                value = state.subIntegralsInputText.collectAsState().value,
+                                value = state.subIntegralsString.collectAsState().value,
                                 onValueChange = {
-                                    state.subIntegralsInputText.value = it
+                                    state.subIntegralsString.value = it
                                 },
                                 label = { Text("count subIntegrals") },
-                                isError = state.subIntegralsInputTextError.collectAsState().value
+                                isError = state.subIntegralsError.collectAsState().value
+                            )
+                            TextField(
+                                value = state.fromString.collectAsState().value,
+                                onValueChange = {
+                                    state.fromString.value = it
+                                },
+                                label = { Text("From") },
+                                isError = state.fromError.collectAsState().value
+                            )
+                            TextField(
+                                value = state.toString.collectAsState().value,
+                                onValueChange = {
+                                    state.toString.value = it
+                                },
+                                label = { Text("To") },
+                                isError = state.toError.collectAsState().value
                             )
                         }
                     }
